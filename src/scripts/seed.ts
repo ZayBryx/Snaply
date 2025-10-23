@@ -1,5 +1,4 @@
-import "@/config/loadEnv"; // ✅ must be first
-
+import "@/config/loadEnv"; // must be first
 import { connectDB } from "@/lib/mongoose";
 import { User } from "@/models/user.model";
 import { BusinessAccount } from "@/models/businessAccount.model";
@@ -9,43 +8,67 @@ async function seed() {
   await connectDB();
   console.log("🌱 Seeding Snaply Database...");
 
-  // Clean previous data (optional)
+  // ──────────────── CLEAN PREVIOUS DATA ────────────────
   await Promise.all([
     User.deleteMany({}),
     BusinessAccount.deleteMany({}),
     Template.deleteMany({}),
   ]);
 
+  // ──────────────── CREATE BASE TEMPLATES ────────────────
+  const templates = await Template.insertMany([
+    {
+      content_pillar: "Motivational",
+      templates: ["Keep pushing!", "Dream big."],
+      type: "solid",
+      isPremium: false,
+      hasFooter: true,
+    },
+    {
+      content_pillar: "Educational",
+      templates: ["5 Ways to Build Authority", "The Psychology of Engagement"],
+      type: "overlay",
+      isPremium: true,
+      hasFooter: false,
+    },
+    {
+      content_pillar: "Promotional",
+      templates: ["Flash Sale!", "Limited Offer — Don’t Miss Out!"],
+      type: "glass",
+      isPremium: false,
+      hasFooter: true,
+    },
+  ]);
+
+  const [motivationalTpl, educationalTpl, promoTpl] = templates;
+
   // ──────────────── USERS ────────────────
-  const adminUser = await User.create({
-    email: "admin@snaply.io",
-    name: "Snaply Admin",
-    plan: "Enterprise",
-    country: "United States",
-    timezone: "America/New_York",
-    role: "admin",
-    business_accounts: [],
-  });
-
-  const userOne = await User.create({
-    email: "isabella@snaply.io",
-    name: "Isabella Reyes",
-    plan: "Pro",
-    country: "Philippines",
-    timezone: "Asia/Manila",
-    role: "user",
-    business_accounts: [],
-  });
-
-  const userTwo = await User.create({
-    email: "jordan@snaply.io",
-    name: "Jordan Carter",
-    plan: "Starter",
-    country: "Singapore",
-    timezone: "Asia/Singapore",
-    role: "user",
-    business_accounts: [],
-  });
+  const [adminUser, userOne, userTwo] = await Promise.all([
+    User.create({
+      email: "admin@snaply.io",
+      name: "Snaply Admin",
+      country: "United States",
+      timezone: "America/New_York",
+      role: "admin",
+      business_accounts: [],
+    }),
+    User.create({
+      email: "isabella@snaply.io",
+      name: "Isabella Reyes",
+      country: "Philippines",
+      timezone: "Asia/Manila",
+      role: "user",
+      business_accounts: [],
+    }),
+    User.create({
+      email: "jordan@snaply.io",
+      name: "Jordan Carter",
+      country: "Singapore",
+      timezone: "Asia/Singapore",
+      role: "user",
+      business_accounts: [],
+    }),
+  ]);
 
   // ──────────────── BUSINESS ACCOUNTS ────────────────
 
@@ -82,9 +105,13 @@ async function seed() {
         description: "A 6-week program to grow online visibility.",
         problemSolved: "Low engagement and inconsistent brand presence.",
         pricing: "$997",
-        templates: ["template-1", "template-2"],
       },
     ],
+    plan: {
+      plan_name: "Pro",
+      expiry_days: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    },
+    templates: [motivationalTpl._id, educationalTpl._id],
   });
 
   userOne.business_accounts.push(business1._id);
@@ -123,9 +150,13 @@ async function seed() {
         description: "A 4-week done-for-you automation setup.",
         problemSolved: "Manual tasks slowing down your operations.",
         pricing: "$1499",
-        templates: ["template-automation", "template-systems"],
       },
     ],
+    plan: {
+      plan_name: "Starter",
+      expiry_days: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+    },
+    templates: [educationalTpl._id, promoTpl._id],
   });
 
   const business2b = await BusinessAccount.create({
@@ -160,38 +191,17 @@ async function seed() {
         description: "An ad strategy system for scaling brands.",
         problemSolved: "Poor ad ROI and inconsistent campaign performance.",
         pricing: "$2997",
-        templates: ["template-growth", "template-scale"],
       },
     ],
+    plan: {
+      plan_name: "Pro",
+      expiry_days: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+    },
+    templates: [motivationalTpl._id, promoTpl._id],
   });
 
   userTwo.business_accounts.push(business2a._id, business2b._id);
   await userTwo.save();
-
-  // ──────────────── TEMPLATES ────────────────
-  await Template.insertMany([
-    {
-      content_pillar: "Motivational",
-      templates: ["Keep pushing!", "Dream big."],
-      type: "solid",
-      isPremium: false,
-      hasFooter: true,
-    },
-    {
-      content_pillar: "Educational",
-      templates: ["5 Ways to Build Authority", "The Psychology of Engagement"],
-      type: "overlay",
-      isPremium: true,
-      hasFooter: false,
-    },
-    {
-      content_pillar: "Promotional",
-      templates: ["Flash Sale!", "Limited Offer — Don’t Miss Out!"],
-      type: "glass",
-      isPremium: false,
-      hasFooter: true,
-    },
-  ]);
 
   console.log("✅ Seed completed successfully.");
   process.exit(0);

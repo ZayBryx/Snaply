@@ -4,7 +4,7 @@ import React from "react";
 import { DynamicTable, type TableAction } from "@/components/ui/DyanmicTable";
 
 export interface IBusiness {
-  business_name: string;
+  business__id: string;
   business_email: string;
   vps: string;
   services?: string[];
@@ -28,11 +28,11 @@ const BusinessTable = ({ data }: BusinessTableProp) => {
   const business: TableAction[] = [
     {
       label: "Edit",
-      onClick: (row) => alert(`Edit product: ${row.name}`),
+      onClick: (row) => alert(`Edit product: ${row._id}`),
     },
     {
       label: "Delete",
-      onClick: (row) => alert(`Delete product: ${row.name}`),
+      onClick: (row) => alert(`Delete product: ${row._id}`),
       variant: "destructive",
     },
   ];

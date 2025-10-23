@@ -1,5 +1,8 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
+//
+// INTERFACES
+//
 export interface ISocials {
   social: string;
   number?: string | null;
@@ -13,7 +16,11 @@ export interface IProduct {
   description: string;
   problemSolved?: string;
   pricing?: string | null;
-  templates: string[];
+}
+
+export interface IPlan {
+  plan_name: string;
+  expiry_days: Date;
 }
 
 export interface IFAQ {
@@ -103,6 +110,8 @@ export interface IBusinessAccount extends Document {
   educational_hook?: IEducationalHook[];
   meme?: IMeme[];
   content_calendar?: IContentCalendar[];
+  plan?: IPlan; // ⬅️ Added plan field
+  templates?: Types.ObjectId[]; // ⬅️ Array of Template references
 }
 
 //
@@ -121,7 +130,11 @@ const ProductSchema = new Schema<IProduct>({
   description: String,
   problemSolved: String,
   pricing: String,
-  templates: [String],
+});
+
+const PlanSchema = new Schema<IPlan>({
+  plan_name: { type: String, required: true },
+  expiry_days: { type: Date, required: true },
 });
 
 const FAQSchema = new Schema<IFAQ>({
@@ -211,6 +224,8 @@ const BusinessAccountSchema = new Schema<IBusinessAccount>({
   educational_hook: [EducationalHookSchema],
   meme: [MemeSchema],
   content_calendar: [ContentCalendarSchema],
+  plan: PlanSchema,
+  templates: [{ type: Schema.Types.ObjectId, ref: "Template" }], // ✅ Array of Template references
 });
 
 export const BusinessAccount =

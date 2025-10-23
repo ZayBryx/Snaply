@@ -5,7 +5,6 @@ export type UserRole = "admin" | "user";
 export interface IUser extends Document {
   email: string;
   name: string;
-  plan: string;
   country: string;
   timezone: string;
   role: UserRole;
@@ -15,7 +14,6 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
   name: { type: String },
-  plan: { type: String },
   country: { type: String },
   timezone: { type: String },
   role: { type: String, enum: ["admin", "user"], default: "user" },
