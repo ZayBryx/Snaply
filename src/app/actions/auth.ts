@@ -41,7 +41,7 @@ export async function loginAction(email: string): Promise<LoginResult> {
       }),
       {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: true,
         sameSite: "lax",
         maxAge: 60 * 60 * 24 * 7, // 7 days
       }

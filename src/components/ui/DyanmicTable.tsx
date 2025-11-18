@@ -10,6 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Table,
   TableBody,
@@ -49,7 +50,35 @@ export interface DynamicTableProps {
   excludeColumns?: string[];
   pagination?: boolean;
   size?: TableSize;
+  columns?: ColumnDef<Record<string, any>>[];
+  virtualize?: boolean; // Added virtualization prop for large datasets
 }
+
+const LazyImage = ({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  return (
+    <img
+      src={src || "/placeholder.svg"}
+      alt={alt}
+      className={`${className} ${
+        !isLoaded ? "opacity-0" : "opacity-100"
+      } transition-opacity duration-300`}
+      loading="lazy"
+      onLoad={() => setIsLoaded(true)}
+      onError={() => setError(true)}
+    />
+  );
+};
 
 const sizeConfig = {
   sm: {
@@ -90,27 +119,26 @@ const sizeConfig = {
 };
 
 export function DynamicTable({
-  data,
-  actions,
+  data = [],
+  actions = [],
   excludeColumns = [],
   pagination = false,
   size = "md",
+  columns: customColumns = [],
+  virtualize = false, // Added virtualize prop with default false
 }: DynamicTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
-  const headers = Object.keys(data[0]).filter(
-    (key) => !excludeColumns.includes(key)
-  );
   const config = sizeConfig[size];
 
   const formatHeader = (text: string) => {
     return text
-      .replace(/([_-])/g, " ") // Replace underscores and hyphens with spaces
-      .replace(/([A-Z])/g, " $1") // Add space before capital letters (camelCase)
-      .replace(/\s+/g, " ") // Replace multiple spaces with single space
+      .replace(/([_-])/g, " ")
+      .replace(/([A-Z])/g, " $1")
+      .replace(/\s+/g, " ")
       .trim()
       .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) // Title case each word
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
   };
 
@@ -121,63 +149,91 @@ export function DynamicTable({
     return String(value);
   };
 
-  const columns: ColumnDef<Record<string, any>>[] = useMemo(
-    () =>
-      headers.map((header) => ({
+  const columns: ColumnDef<Record<string, any>>[] = useMemo(() => {
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    const headers = Object.keys(data[0] || {}).filter(
+      (key) => !excludeColumns.includes(key)
+    );
+
+    const customColumnMap = new Map(
+      (customColumns || []).map((col) => {
+        const key = (col as any).accessorKey || (col as any).id;
+        return [key, col];
+      })
+    );
+
+    const generatedColumns = headers.map((header) => {
+      const customCol = customColumnMap.get(header);
+
+      if (customCol) {
+        return customCol;
+      }
+
+      return {
         accessorKey: header,
         header: formatHeader(header),
-        cell: (info) => formatValue(info.getValue()),
+        cell: (info: any) => formatValue(info.getValue()),
         enableSorting: true,
-      })),
-    [headers]
-  );
+      };
+    });
 
-  if (actions && actions.length > 0) {
-    columns.push({
-      id: "actions",
-      header: "Actions",
-      cell: (info) => {
-        const rowIndex = info.row.index;
-        const row = info.row.original;
+    return generatedColumns;
+  }, [customColumns, data, excludeColumns]);
 
-        return actions.length === 1 ? (
-          <Button
-            variant={actions[0].variant || "outline"}
-            size="sm"
-            onClick={() => actions[0].onClick(row, rowIndex)}
-          >
-            {actions[0].label}
-          </Button>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {actions.map((action, idx) => (
-                <DropdownMenuItem
-                  key={idx}
-                  onClick={() => action.onClick(row, rowIndex)}
-                >
-                  {action.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-    } as ColumnDef<Record<string, any>>);
-  }
+  const columnsWithActions = useMemo(() => {
+    const cols = [...columns];
+    if (actions && actions.length > 0) {
+      cols.push({
+        id: "actions",
+        header: "Actions",
+        cell: (info) => {
+          const rowIndex = info.row.index;
+          const row = info.row.original;
+
+          return actions.length === 1 ? (
+            <Button
+              variant={actions[0].variant || "outline"}
+              size="sm"
+              onClick={() => actions[0].onClick(row, rowIndex)}
+            >
+              {actions[0].label}
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {actions.map((action, idx) => (
+                  <DropdownMenuItem
+                    key={idx}
+                    onClick={() => action.onClick(row, rowIndex)}
+                  >
+                    {action.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      } as ColumnDef<Record<string, any>>);
+    }
+    return cols;
+  }, [columns, actions]);
 
   const table = useReactTable({
     data,
-    columns,
+    columns: columnsWithActions,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    ...(pagination && { getPaginationRowModel: getPaginationRowModel() }),
+    ...(pagination &&
+      !virtualize && { getPaginationRowModel: getPaginationRowModel() }),
     state: {
       globalFilter,
       sorting,
@@ -188,15 +244,35 @@ export function DynamicTable({
   });
 
   useEffect(() => {
-    if (pagination) {
+    if (pagination && !virtualize) {
       table.setPageSize(10);
     }
-  }, [pagination, table]);
+  }, [pagination, virtualize, table]);
+
+  const { rows } = table.getRowModel();
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => null,
+    estimateSize: () => 50,
+    overscan: 10,
+    enabled: virtualize,
+  });
+
+  const virtualRows = virtualize ? virtualizer.getVirtualItems() : [];
+  const totalSize = virtualize ? virtualizer.getTotalSize() : 0;
+  const paddingTop = virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
+  const paddingBottom =
+    virtualRows.length > 0
+      ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
+      : 0;
 
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center p-8 text-muted-foreground">
-        No data available
+        <div className="text-center">
+          <p className="font-medium">No data available</p>
+          <p className="text-sm">Please provide data to display the table</p>
+        </div>
       </div>
     );
   }
@@ -217,9 +293,15 @@ export function DynamicTable({
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div
+        className={`overflow-x-auto rounded-lg border border-border ${
+          virtualize ? "h-96 overflow-y-auto" : ""
+        }`}
+      >
         <Table>
-          <TableHeader>
+          <TableHeader
+            className={virtualize ? "sticky top-0 z-10 bg-background" : ""}
+          >
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -253,23 +335,65 @@ export function DynamicTable({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell
-                    key={cell.id}
-                    className={`${config.cellPadding} ${config.cellText}`}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
+            {virtualize ? (
+              <>
+                {paddingTop > 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columnsWithActions.length}
+                      style={{ height: `${paddingTop}px` }}
+                    />
+                  </TableRow>
+                )}
+                {virtualRows.map((virtualRow) => {
+                  const row = rows[virtualRow.index];
+                  return (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={`${config.cellPadding} ${config.cellText}`}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+                {paddingBottom > 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columnsWithActions.length}
+                      style={{ height: `${paddingBottom}px` }}
+                    />
+                  </TableRow>
+                )}
+              </>
+            ) : (
+              rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className={`${config.cellPadding} ${config.cellText}`}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
 
-      {pagination && (
+      {pagination && !virtualize && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             Page {table.getState().pagination.pageIndex + 1} of{" "}
@@ -301,3 +425,5 @@ export function DynamicTable({
     </div>
   );
 }
+
+export { LazyImage };

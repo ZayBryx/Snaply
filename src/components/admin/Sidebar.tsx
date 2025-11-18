@@ -13,6 +13,8 @@ const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: Home },
   { name: "Business", href: "/admin/business", icon: Briefcase },
   { name: "Templates", href: "/admin/template", icon: LayoutTemplate },
+  { name: "Affiliate", href: "/admin/affiliate", icon: LayoutTemplate },
+  { name: "Payments", href: "/admin/payment", icon: LayoutTemplate },
 ];
 
 export function Sidebar() {
