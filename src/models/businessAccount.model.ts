@@ -14,19 +14,23 @@ export interface IProduct {
   active: boolean;
   name: string;
   description: string;
-  problemSolved?: string;
+  problem_solved?: string;
   pricing?: string | null;
 }
 
 export interface IPlan {
   plan_name: string;
   expiry_days: Date;
+  date?: Date;
+  status?: string;
+  price?: string;
 }
 
 export interface IFAQ {
   sub_niche: string;
   faq: string[];
   isUsed?: boolean;
+  rank: number;
   date_used?: Date | null;
 }
 
@@ -34,6 +38,7 @@ export interface IEngagement {
   sub_niche: string;
   engagement: string[];
   isUsed?: boolean;
+  rank: number;
   date_used?: Date | null;
 }
 
@@ -51,36 +56,13 @@ export interface IEducationalHook {
   date_used?: Date | null;
 }
 
-export interface ISubNiche {
+export interface IAccount {
+  platform: string;
+  id: string;
   name: string;
-  createdAt?: Date;
-  owner_user: Types.ObjectId;
-  business_account_id: Types.ObjectId;
-}
-
-export interface IContentCalendar {
-  date: Date;
-  position?: string;
-  contentPillar: string;
-  goalCTA?: string;
-  mainTopic?: string;
-  topic?: string;
-  hook?: string;
-  postCaption?: string;
-  hashtags?: string[];
-  approve_content?: boolean;
-  approve_graphic?: boolean;
-  content_url?: string;
-  content_structure?: string;
-  facebook_url?: string;
-  instagram_url?: string;
-  x_url?: string;
-  linkedin_url?: string;
-  threads_url?: string;
-  content_used?: string;
-  hook_used?: string;
-  highlight_hooks?: string;
-  template_used?: string;
+  image_url?: string | null;
+  linked_at?: Date | null;
+  status?: string;
 }
 
 export interface IBusinessAccount extends Document {
@@ -105,20 +87,48 @@ export interface IBusinessAccount extends Document {
   brand_voice?: string | null;
   products?: IProduct[];
   faq?: IFAQ[];
-  sub_niche?: ISubNiche[];
+  sub_niche?: string[];
   engagement?: IEngagement[];
   educational_hook?: IEducationalHook[];
   meme?: IMeme[];
-  content_calendar?: IContentCalendar[];
   plan?: IPlan; // ⬅️ Added plan field
-  templates?: Types.ObjectId[]; // ⬅️ Array of Template references
+  templates?: String[]; // ⬅️ Array of Template references
+  content_calendar_id?: Types.ObjectId;
+  credits?: number;
+  status?: string;
+  accounts?: IAccount[];
 }
 
 //
 // SCHEMAS
 //
+const AccountsSchema = new Schema<IAccount>({
+  platform: {
+    type: String,
+    enum: [
+      "faceboook",
+      "x",
+      "instagram",
+      "linkedin",
+      "tiktok",
+      "threads",
+      "youtube",
+      "pinterest",
+    ],
+  },
+  id: { type: String },
+  name: { type: String },
+  image_url: String,
+  linked_at: Date,
+  status: {
+    type: String,
+    enum: ["connected", "failed", "inactive"],
+    default: "connected",
+  },
+});
+
 const SocialsSchema = new Schema<ISocials>({
-  social: { type: String, required: true },
+  social: { type: String },
   number: String,
   business_email: String,
   website: String,
@@ -128,19 +138,23 @@ const ProductSchema = new Schema<IProduct>({
   active: { type: Boolean, default: true },
   name: String,
   description: String,
-  problemSolved: String,
+  problem_solved: String,
   pricing: String,
 });
 
 const PlanSchema = new Schema<IPlan>({
-  plan_name: { type: String, required: true },
-  expiry_days: { type: Date, required: true },
+  plan_name: { type: String },
+  expiry_days: { type: Date },
+  date: { type: Date, default: Date.now },
+  status: { type: String, enum: ["active", "expired"], default: "active" },
+  price: { type: String },
 });
 
 const FAQSchema = new Schema<IFAQ>({
   sub_niche: String,
   faq: [String],
   isUsed: { type: Boolean, default: false },
+  rank: Number,
   date_used: Date,
 });
 
@@ -148,6 +162,7 @@ const EngagementSchema = new Schema<IEngagement>({
   sub_niche: String,
   engagement: [String],
   isUsed: { type: Boolean, default: false },
+  rank: Number,
   date_used: Date,
 });
 
@@ -165,68 +180,42 @@ const EducationalHookSchema = new Schema<IEducationalHook>({
   date_used: Date,
 });
 
-const SubNicheSchema = new Schema<ISubNiche>({
-  name: String,
-  createdAt: { type: Date, default: Date.now },
-  owner_user: { type: Schema.Types.ObjectId, ref: "User" },
-  business_account_id: { type: Schema.Types.ObjectId, ref: "BusinessAccount" },
-});
-
-const ContentCalendarSchema = new Schema<IContentCalendar>({
-  date: Date,
-  position: String,
-  contentPillar: { type: String, required: true },
-  goalCTA: String,
-  mainTopic: String,
-  topic: String,
-  hook: String,
-  postCaption: String,
-  hashtags: [String],
-  approve_content: { type: Boolean, default: false },
-  approve_graphic: { type: Boolean, default: false },
-  content_url: String,
-  content_structure: String,
-  facebook_url: String,
-  instagram_url: String,
-  x_url: String,
-  linkedin_url: String,
-  threads_url: String,
-  content_used: String,
-  hook_used: String,
-  highlight_hooks: String,
-  template_used: String,
-});
-
-const BusinessAccountSchema = new Schema<IBusinessAccount>({
-  owner_user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  business_name: { type: String, required: true },
-  business_email: { type: String, required: true },
-  vps: String,
-  services: [String],
-  content_language: String,
-  niche: String,
-  industry: String,
-  target_market: [String],
-  socials: SocialsSchema,
-  content_calendar_url: String,
-  dashboard_url: String,
-  assets: {
-    logo: String,
-    accent_color: String,
-    primary_color: String,
-    font: String,
+const BusinessAccountSchema = new Schema<IBusinessAccount>(
+  {
+    owner_user: { type: Schema.Types.ObjectId, ref: "User" },
+    business_name: { type: String, required: true },
+    business_email: { type: String },
+    vps: String,
+    services: [String],
+    content_language: String,
+    niche: String,
+    industry: String,
+    target_market: [String],
+    socials: SocialsSchema,
+    content_calendar_url: String,
+    dashboard_url: String,
+    assets: {
+      logo: String,
+      accent_color: String,
+      primary_color: String,
+      font: String,
+    },
+    brand_voice: [String],
+    products: [ProductSchema],
+    faq: [FAQSchema],
+    sub_niche: [String],
+    engagement: [EngagementSchema],
+    educational_hook: [EducationalHookSchema],
+    meme: [MemeSchema],
+    plan: PlanSchema,
+    templates: [{ type: String }],
+    content_calendar_id: { type: String },
+    credits: { type: Number, default: 0 },
+    status: { type: String, default: "active" },
+    accounts: [AccountsSchema],
   },
-  brand_voice: String,
-  products: [ProductSchema],
-  faq: [FAQSchema],
-  sub_niche: [SubNicheSchema],
-  engagement: [EngagementSchema],
-  educational_hook: [EducationalHookSchema],
-  meme: [MemeSchema],
-  content_calendar: [ContentCalendarSchema],
-  plan: PlanSchema,
-  templates: [{ type: Schema.Types.ObjectId, ref: "Template" }], // ✅ Array of Template references
-});
+  { timestamps: true }
+);
 
 export const BusinessAccount =
   mongoose.models.BusinessAccount ||

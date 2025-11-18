@@ -3,6 +3,12 @@ import { connectDB } from "@/lib/mongoose";
 import { User } from "@/models/user.model";
 import { BusinessAccount } from "@/models/businessAccount.model";
 import { Template } from "@/models/template.model";
+import Affiliate from "@/models/affiliate.model";
+import Coupon from "@/models/coupon.model";
+import Payments from "@/models/payments.model";
+import { business_accounts } from "./business_accounts";
+import { affiliate } from "./affiliates";
+import { coupons } from "./coupons";
 
 async function seed() {
   await connectDB();
@@ -13,195 +19,139 @@ async function seed() {
     User.deleteMany({}),
     BusinessAccount.deleteMany({}),
     Template.deleteMany({}),
+    // Affiliate.deleteMany({}),
+    // Coupon.deleteMany({}),
+    Payments.deleteMany({}),
   ]);
 
-  // ──────────────── CREATE BASE TEMPLATES ────────────────
-  const templates = await Template.insertMany([
-    {
-      content_pillar: "Motivational",
-      templates: ["Keep pushing!", "Dream big."],
-      type: "solid",
-      isPremium: false,
-      hasFooter: true,
-    },
-    {
-      content_pillar: "Educational",
-      templates: ["5 Ways to Build Authority", "The Psychology of Engagement"],
-      type: "overlay",
-      isPremium: true,
-      hasFooter: false,
-    },
-    {
-      content_pillar: "Promotional",
-      templates: ["Flash Sale!", "Limited Offer — Don’t Miss Out!"],
-      type: "glass",
-      isPremium: false,
-      hasFooter: true,
-    },
-  ]);
+  // ──────────────────────────────────────────────
+  // Normalizes all possible date formats
+  // ──────────────────────────────────────────────
+  function normalizeDate(value: any): Date | null {
+    if (!value) return null;
+    if (typeof value !== "string") return new Date(value);
 
-  const [motivationalTpl, educationalTpl, promoTpl] = templates;
+    const trimmed = value.trim();
 
-  // ──────────────── USERS ────────────────
-  const [adminUser, userOne, userTwo] = await Promise.all([
-    User.create({
-      email: "admin@snaply.io",
-      name: "Snaply Admin",
-      country: "United States",
-      timezone: "America/New_York",
-      role: "admin",
-      business_accounts: [],
-    }),
-    User.create({
-      email: "isabella@snaply.io",
-      name: "Isabella Reyes",
-      country: "Philippines",
-      timezone: "Asia/Manila",
-      role: "user",
-      business_accounts: [],
-    }),
-    User.create({
-      email: "jordan@snaply.io",
-      name: "Jordan Carter",
-      country: "Singapore",
-      timezone: "Asia/Singapore",
-      role: "user",
-      business_accounts: [],
-    }),
-  ]);
+    // Empty string
+    if (trimmed === "") return null;
 
-  // ──────────────── BUSINESS ACCOUNTS ────────────────
+    // Literal template string (n8n fields)
+    if (trimmed.startsWith("$(")) return null;
 
-  // User One → 1 Business
-  const business1 = await BusinessAccount.create({
-    owner_user: userOne._id,
-    business_name: "Reyes Media Group",
-    business_email: "contact@reyesmedia.com",
-    vps: "vps123.snaply.cloud",
-    services: ["Content Marketing", "Brand Strategy"],
-    content_language: "English",
-    niche: "Coaching",
-    industry: "Media",
-    target_market: ["Female Entrepreneurs", "Consultants"],
-    socials: {
-      social: "instagram",
-      number: "09171234567",
-      business_email: "social@reyesmedia.com",
-      website: "https://reyesmedia.com",
-    },
-    content_calendar_url: "https://snaply.io/calendar/reyes",
-    dashboard_url: "https://snaply.io/dashboard/reyes",
-    assets: {
-      logo: "https://cdn.snaply.io/logos/reyes.png",
-      accent_color: "#FF4081",
-      primary_color: "#222222",
-      font: "Inter",
-    },
-    brand_voice: "Empowering, Elegant, Confident",
-    products: [
-      {
-        active: true,
-        name: "Visibility Accelerator",
-        description: "A 6-week program to grow online visibility.",
-        problemSolved: "Low engagement and inconsistent brand presence.",
-        pricing: "$997",
-      },
-    ],
-    plan: {
-      plan_name: "Pro",
-      expiry_days: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-    templates: [motivationalTpl._id, educationalTpl._id],
+    // Convert DD/MM/YYYY → YYYY-MM-DD
+    const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    if (ddmmyyyy.test(trimmed)) {
+      const [, dd, mm, yyyy] = trimmed.match(ddmmyyyy)!;
+      return new Date(`${yyyy}-${mm}-${dd}`);
+    }
+
+    // Try native JS parsing
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) return parsed;
+
+    return null;
+  }
+
+  const cleanedBusinessAccounts = business_accounts.map((acc) => {
+    // Enforce defaults for top-level fields
+    acc.business_name = acc.business_name
+      ? String(acc.business_name).trim()
+      : "";
+    acc.business_email = acc.business_email
+      ? String(acc.business_email).trim()
+      : "";
+    acc.vps = acc.vps ? String(acc.vps).trim() : "";
+    acc.services = Array.isArray(acc.services) ? acc.services : [];
+    acc.content_language = acc.content_language
+      ? String(acc.content_language).trim()
+      : "";
+    acc.niche = acc.niche ? String(acc.niche).trim() : "";
+    acc.industry = acc.industry ? String(acc.industry).trim() : "";
+    acc.target_market = Array.isArray(acc.target_market)
+      ? acc.target_market
+      : [];
+    acc.socials = acc.socials || {};
+    acc.assets = acc.assets || {};
+    acc.brand_voice = Array.isArray(acc.brand_voice) ? acc.brand_voice : [];
+    acc.products = Array.isArray(acc.products) ? acc.products : [];
+    acc.faq = Array.isArray(acc.faq) ? acc.faq : [];
+    acc.sub_niche = Array.isArray(acc.sub_niche) ? acc.sub_niche : [];
+    acc.engagement = Array.isArray(acc.engagement) ? acc.engagement : [];
+    acc.educational_hook = Array.isArray(acc.educational_hook)
+      ? acc.educational_hook
+      : [];
+    acc.meme = Array.isArray(acc.meme) ? acc.meme : [];
+    acc.plan = acc.plan || {
+      plan_name: "default",
+      expiry_days: new Date(),
+      status: "active",
+    };
+    acc.templates = Array.isArray(acc.templates) ? acc.templates : [];
+    acc.content_calendar_id = acc.content_calendar_id || "";
+    acc.credits = acc.credits || 0;
+    acc.status = acc.status || "active";
+    acc.accounts = Array.isArray(acc.accounts) ? acc.accounts : [];
+    acc.date_used = normalizeDate(acc.date_used);
+
+    // ---------------- ENGAGEMENT ----------------
+    acc.engagement = acc.engagement.map((item: any) => {
+      return {
+        "sub-niche": item["sub-niche"] ? String(item["sub-niche"]).trim() : "",
+        engagement: Array.isArray(item.engagement)
+          ? item.engagement.map((e: string) => e.trim())
+          : [],
+        faq: Array.isArray(item.faq)
+          ? item.faq.map((f: string) => f.trim())
+          : [],
+        rank: item.rank || 0,
+        isUsed: Boolean(item.isUsed),
+        date_used: normalizeDate(item.date_used),
+        date: normalizeDate(item.date),
+        date_added: normalizeDate(item.date_added),
+        date_updated: normalizeDate(item.date_updated),
+        created_at: normalizeDate(item.created_at),
+        updated_at: normalizeDate(item.updated_at),
+      };
+    });
+
+    // ---------------- FAQ ----------------
+    acc.faq = acc.faq.map((item: any) => {
+      return {
+        "sub-niche": item["sub-niche"] ? String(item["sub-niche"]).trim() : "",
+        faq: Array.isArray(item.faq)
+          ? item.faq.map((f: string) => f.trim())
+          : [],
+        engagement: Array.isArray(item.engagement)
+          ? item.engagement.map((e: string) => e.trim())
+          : [],
+        rank: item.rank || 0,
+        isUsed: Boolean(item.isUsed),
+        date_used: normalizeDate(item.date_used),
+        date: normalizeDate(item.date),
+        date_added: normalizeDate(item.date_added),
+        date_updated: normalizeDate(item.date_updated),
+        created_at: normalizeDate(item.created_at),
+        updated_at: normalizeDate(item.updated_at),
+      };
+    });
+
+    // ---------------- EDUCATIONAL HOOKS ----------------
+    acc.educational_hooks = acc.educational_hooks.map((item: any) => {
+      return {
+        educational_hook: item.educational_hook
+          ? String(item.educational_hook).trim()
+          : "",
+        isUsed: Boolean(item.isUsed),
+        date_used: normalizeDate(item.date_used),
+      };
+    });
+
+    return acc;
   });
 
-  userOne.business_accounts.push(business1._id);
-  await userOne.save();
-
-  // User Two → 2 Businesses
-  const business2a = await BusinessAccount.create({
-    owner_user: userTwo._id,
-    business_name: "Carter Digital Studio",
-    business_email: "hello@carterdigital.io",
-    vps: "vps456.snaply.cloud",
-    services: ["Web Design", "Automation"],
-    content_language: "English",
-    niche: "Tech Startups",
-    industry: "Creative Agency",
-    target_market: ["Founders", "Startups"],
-    socials: {
-      social: "linkedin",
-      number: "09998887777",
-      business_email: "team@carterdigital.io",
-      website: "https://carterdigital.io",
-    },
-    content_calendar_url: "https://snaply.io/calendar/carter",
-    dashboard_url: "https://snaply.io/dashboard/carter",
-    assets: {
-      logo: "https://cdn.snaply.io/logos/carter.png",
-      accent_color: "#00BFA6",
-      primary_color: "#111111",
-      font: "Poppins",
-    },
-    brand_voice: "Modern, Direct, Tech-savvy",
-    products: [
-      {
-        active: true,
-        name: "Automation Blueprint",
-        description: "A 4-week done-for-you automation setup.",
-        problemSolved: "Manual tasks slowing down your operations.",
-        pricing: "$1499",
-      },
-    ],
-    plan: {
-      plan_name: "Starter",
-      expiry_days: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-    },
-    templates: [educationalTpl._id, promoTpl._id],
-  });
-
-  const business2b = await BusinessAccount.create({
-    owner_user: userTwo._id,
-    business_name: "Momentum Marketing Co.",
-    business_email: "info@momentummarketing.co",
-    vps: "vps789.snaply.cloud",
-    services: ["Ads Management", "Social Media Strategy"],
-    content_language: "English",
-    niche: "E-commerce",
-    industry: "Advertising",
-    target_market: ["Ecom Brands", "Online Retailers"],
-    socials: {
-      social: "facebook",
-      number: "09223334444",
-      business_email: "ads@momentummarketing.co",
-      website: "https://momentummarketing.co",
-    },
-    content_calendar_url: "https://snaply.io/calendar/momentum",
-    dashboard_url: "https://snaply.io/dashboard/momentum",
-    assets: {
-      logo: "https://cdn.snaply.io/logos/momentum.png",
-      accent_color: "#FF9800",
-      primary_color: "#000000",
-      font: "Roboto",
-    },
-    brand_voice: "Energetic, Bold, Conversion-focused",
-    products: [
-      {
-        active: true,
-        name: "Ecom Growth System",
-        description: "An ad strategy system for scaling brands.",
-        problemSolved: "Poor ad ROI and inconsistent campaign performance.",
-        pricing: "$2997",
-      },
-    ],
-    plan: {
-      plan_name: "Pro",
-      expiry_days: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-    },
-    templates: [motivationalTpl._id, promoTpl._id],
-  });
-
-  userTwo.business_accounts.push(business2a._id, business2b._id);
-  await userTwo.save();
+  console.log("Cleaned Business Accounts:", cleanedBusinessAccounts[0]);
+  // await BusinessAccount.insertMany(cleanedBusinessAccounts);
 
   console.log("✅ Seed completed successfully.");
   process.exit(0);
