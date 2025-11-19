@@ -6,8 +6,8 @@ export interface ITemplate extends Document {
   html?: string | null;
   url?: string | null;
   type: "solid" | "overlay" | "glass";
-  isPremium: boolean;
-  hasFooter: boolean;
+  premum: boolean;
+  footer: boolean;
 }
 
 const TemplateSchema = new Schema<ITemplate>({
@@ -16,8 +16,8 @@ const TemplateSchema = new Schema<ITemplate>({
   html: { type: String, default: null },
   url: { type: String, default: null },
   type: { type: String, enum: ["solid", "overlay", "glass"], required: true },
-  isPremium: { type: Boolean, default: false },
-  hasFooter: { type: Boolean, default: false },
+  premum: { type: Boolean, default: false },
+  footer: { type: Boolean, default: false },
 });
 
 export const Template =

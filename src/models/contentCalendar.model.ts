@@ -8,7 +8,7 @@ export interface IComment {
 
 export interface IContentCalendar extends Document {
   owned_by: string;
-  date: Date;
+  date: string;
   position?: string;
   content_pillar: string;
   goal_cta?: string;
@@ -19,7 +19,7 @@ export interface IContentCalendar extends Document {
   hashtags?: string[];
   approve_content?: boolean;
   approve_graphic?: boolean;
-  content_url?: string[];
+  graphic_url?: string[];
   content_structure?: string;
   facebook_url?: string;
   instagram_url?: string;
@@ -56,7 +56,7 @@ const CommentSchema = new Schema<IComment>({
 const ContentCalendarSchema = new Schema<IContentCalendar>(
   {
     owned_by: String,
-    date: Date,
+    date: { type: String, required: true, unique: true },
     position: String,
     content_pillar: { type: String, required: true },
     goal_cta: String,
@@ -67,7 +67,7 @@ const ContentCalendarSchema = new Schema<IContentCalendar>(
     hashtags: [String],
     approve_content: { type: Boolean, default: false },
     approve_graphic: { type: Boolean, default: false },
-    content_url: [String],
+    graphic_url: [String],
     content_structure: String,
     facebook_url: String,
     instagram_url: String,

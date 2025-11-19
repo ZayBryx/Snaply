@@ -1,30 +1,39 @@
 "use server";
 
 import { connectDB } from "@/lib/mongoose";
-import Affiliate from "@/models/affiliate.model";
-import Coupon from "@/models/coupon.model";
+import Affiliate, { IAffiliate } from "@/models/affiliate.model";
+import Coupon, { ICoupon } from "@/models/coupon.model";
+import { Types } from "mongoose";
 
 export async function getAllAffiliate() {
-  // 1️⃣ Connect to MongoDB
   await connectDB();
 
   try {
-    const affiliates = await Affiliate.find().lean();
+    const affiliates = await Affiliate.find().lean<IAffiliate[]>();
+    const coupons = await Coupon.find().lean<ICoupon[]>();
 
-    const coupons = await Coupon.find().lean();
+    const couponMap: Record<string, string[]> = {};
 
-    const combined = affiliates.map((affiliate) => {
-      const affiliateCoupons = coupons.filter(
-        (coupon) => coupon.commission === affiliate.commission
-      );
+    for (const c of coupons) {
+      if (!c.owned_by) continue;
+
+      if (!couponMap[c.owned_by]) {
+        couponMap[c.owned_by] = [];
+      }
+
+      couponMap[c.owned_by].push(c.coupon_code);
+    }
+
+    const result = affiliates.map((aff) => {
+      const id = (aff._id as Types.ObjectId).toString();
 
       return {
-        ...affiliate,
-        coupons: affiliateCoupons,
+        ...aff,
+        coupon_codes: couponMap[id] || [],
       };
     });
 
-    return combined;
+    return JSON.parse(JSON.stringify(result));
   } catch (error) {
     console.error("Error fetching affiliates and coupons:", error);
     return [];

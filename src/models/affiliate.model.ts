@@ -11,7 +11,7 @@ interface Mop {
   type?: string;
 }
 
-export interface IUser extends Document {
+export interface IAffiliate extends Document {
   _id: Types.ObjectId;
   email: string;
   first_name: string;
@@ -26,7 +26,7 @@ export interface IUser extends Document {
   registered?: boolean;
 }
 
-const AffiliateSchema: Schema = new Schema<IUser>(
+const AffiliateSchema: Schema = new Schema<IAffiliate>(
   {
     email: { type: String, required: true },
     first_name: { type: String, required: true },
@@ -52,4 +52,4 @@ const AffiliateSchema: Schema = new Schema<IUser>(
 );
 
 export default mongoose.models.Affiliate ||
-  mongoose.model<IUser>("Affiliate", AffiliateSchema);
+  mongoose.model<IAffiliate>("Affiliate", AffiliateSchema);

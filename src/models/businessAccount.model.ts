@@ -31,7 +31,7 @@ export interface IFAQ {
   faq: string[];
   isUsed?: boolean;
   rank: number;
-  date_used?: Date | null;
+  date_used?: Date | null | string;
 }
 
 export interface IEngagement {
@@ -39,7 +39,7 @@ export interface IEngagement {
   engagement: string[];
   isUsed?: boolean;
   rank: number;
-  date_used?: Date | null;
+  date_used?: Date | null | string;
 }
 
 export interface IMeme {
@@ -47,13 +47,13 @@ export interface IMeme {
   info?: string | null;
   image_url?: string | null;
   isUsed?: boolean;
-  date_used?: Date | null;
+  date_used?: Date | null | string;
 }
 
 export interface IEducationalHook {
   educational_hook: string;
   isUsed?: boolean;
-  date_used?: Date | null;
+  date_used?: Date | null | string;
 }
 
 export interface IAccount {
@@ -155,7 +155,7 @@ const FAQSchema = new Schema<IFAQ>({
   faq: [String],
   isUsed: { type: Boolean, default: false },
   rank: Number,
-  date_used: Date,
+  date_used: String,
 });
 
 const EngagementSchema = new Schema<IEngagement>({
@@ -163,7 +163,7 @@ const EngagementSchema = new Schema<IEngagement>({
   engagement: [String],
   isUsed: { type: Boolean, default: false },
   rank: Number,
-  date_used: Date,
+  date_used: String,
 });
 
 const MemeSchema = new Schema<IMeme>({
@@ -171,13 +171,13 @@ const MemeSchema = new Schema<IMeme>({
   info: String,
   image_url: String,
   isUsed: { type: Boolean, default: false },
-  date_used: Date,
+  date_used: String,
 });
 
 const EducationalHookSchema = new Schema<IEducationalHook>({
   educational_hook: String,
   isUsed: { type: Boolean, default: false },
-  date_used: Date,
+  date_used: String,
 });
 
 const BusinessAccountSchema = new Schema<IBusinessAccount>(

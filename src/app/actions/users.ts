@@ -2,8 +2,11 @@
 
 import { connectDB } from "@/lib/mongoose";
 import { Template } from "@/models/template.model";
+import { BusinessAccount } from "@/models/businessAccount.model";
 import { User } from "@/models/user.model";
 import "@/models/businessAccount.model";
+import Affiliate from "@/models/affiliate.model";
+import Payment from "@/models/payments.model";
 
 export async function getAllUsers(currentUserId?: string) {
   try {
@@ -27,9 +30,12 @@ export async function getUserStats() {
     const totalUsers = await User.countDocuments();
     const adminCount = await User.countDocuments({ role: "admin" });
     const userCount = await User.countDocuments({ role: "user" });
-    const usersWithBusiness = await User.countDocuments({
-      business_accounts: { $exists: true, $ne: [] },
-    });
+    const usersWithBusiness = await BusinessAccount.countDocuments();
+    const affilaiteCount = await Affiliate.countDocuments();
+    const paymentsCount = await Payment.countDocuments();
+    // User.countDocuments({
+    //   business_accounts: { $exists: true, $ne: [] },
+    // });
     const templatesCount = await Template.countDocuments();
 
     return {
@@ -38,6 +44,8 @@ export async function getUserStats() {
       userCount,
       usersWithBusiness,
       templatesCount,
+      affilaiteCount,
+      paymentsCount,
     };
   } catch (error) {
     console.error("Error fetching user stats:", error);
